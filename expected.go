@@ -1,38 +1,43 @@
 package main
 
-type Expected[T comparable, E comparable] struct {
-	t T
-	e E
+type Expected[T any, E any] struct {
+	t        T
+	e        E
+	hasValue bool
 }
 
-func (e Expected[T, E]) AndThen[Z comparable](f func(T) Expected[Z, E]) Expected[Z, E] {
-	var z E
-	if e.e != z {
-		return Expected[Z, E]{e: e.e}
+func Success[T, E any](t T) Expected[T, E] {
+	return Expected[T, E]{t: t, hasValue: true}
+}
+
+func Failure[T, E any](e E) Expected[T, E] {
+	return Expected[T, E]{e: e, hasValue: false}
+}
+
+func (e Expected[T, E]) AndThen[Z any](f func(T) Expected[Z, E]) Expected[Z, E] {
+	if !e.hasValue {
+		return Expected[Z, E]{e: e.e, hasValue: false}
 	}
 	return f(e.t)
 }
 
-func (e Expected[T, E]) Transform[Z comparable](f func(T) Z) Expected[Z, E] {
-	var z E
-	if e.e != z {
-		return Expected[Z, E]{e: e.e}
+func (e Expected[T, E]) Transform[Z any](f func(T) Z) Expected[Z, E] {
+	if !e.hasValue {
+		return Expected[Z, E]{e: e.e, hasValue: false}
 	}
-	return Expected[Z, E]{t: f(e.t)}
+	return Expected[Z, E]{t: f(e.t), hasValue: true}
 }
 
-func (e Expected[T, E]) OrElse[Z comparable](f func(E) Expected[T, Z]) Expected[T, Z] {
-	var z T
-	if e.t != z {
-		return Expected[T, Z]{t: e.t}
+func (e Expected[T, E]) OrElse[Z any](f func(E) Expected[T, Z]) Expected[T, Z] {
+	if e.hasValue {
+		return Expected[T, Z]{t: e.t, hasValue: true}
 	}
 	return f(e.e)
 }
 
-func (e Expected[T, E]) TransformError[Z comparable](f func(E) Z) Expected[T, Z] {
-	var z T
-	if e.t != z {
-		return Expected[T, Z]{t: e.t}
+func (e Expected[T, E]) TransformError[Z any](f func(E) Z) Expected[T, Z] {
+	if e.hasValue {
+		return Expected[T, Z]{t: e.t, hasValue: true}
 	}
-	return Expected[T, Z]{e: f(e.e)}
+	return Expected[T, Z]{e: f(e.e), hasValue: false}
 }
