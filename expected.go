@@ -1,5 +1,7 @@
 package main
 
+import "reflect"
+
 type Expected[T any, E any] struct {
 	t        T
 	e        E
@@ -76,4 +78,41 @@ func (e *Expected[T, E]) EmplaceError(err E) *E {
 	e.e = err
 	e.hasValue = false
 	return &e.e
+}
+
+func (e Expected[T, E]) ValueOrGet(f func() T) T {
+	if !e.hasValue {
+		return f()
+	}
+	return e.t
+}
+
+func (e Expected[T, E]) IfHasValue(f func(T)) {
+	if e.hasValue {
+		f(e.t)
+	}
+}
+
+func (e Expected[T, E]) IfHasError(f func(E)) {
+	if !e.hasValue {
+		f(e.e)
+	}
+}
+
+func (e Expected[T, E]) IfHasValueOrElse(f func(T), g func(E)) {
+	if e.hasValue {
+		f(e.t)
+	} else {
+		g(e.e)
+	}
+}
+
+func (e Expected[T, E]) Equals(other Expected[T, E]) bool {
+	if e.hasValue != other.hasValue {
+		return false
+	}
+	if e.hasValue {
+		return reflect.DeepEqual(e.t, other.t)
+	}
+	return reflect.DeepEqual(e.e, other.e)
 }

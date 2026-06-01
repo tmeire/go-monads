@@ -266,3 +266,94 @@ func TestEmplace(t *testing.T) {
 		}
 	})
 }
+
+func TestExpectedUtilities(t *testing.T) {
+	t.Run("ValueOrGet", func(t *testing.T) {
+		if Success[int, string](42).ValueOrGet(func() int { return 100 }) != 42 {
+			t.Error("expected 42")
+		}
+		if Failure[int, string]("err").ValueOrGet(func() int { return 100 }) != 100 {
+			t.Error("expected 100")
+		}
+	})
+
+	t.Run("IfHasValue", func(t *testing.T) {
+		called := false
+		Success[int, string](42).IfHasValue(func(i int) {
+			called = true
+		})
+		if !called {
+			t.Error("expected function to be called")
+		}
+
+		called = false
+		Failure[int, string]("err").IfHasValue(func(i int) {
+			called = true
+		})
+		if called {
+			t.Error("expected function not to be called")
+		}
+	})
+
+	t.Run("IfHasError", func(t *testing.T) {
+		called := false
+		Failure[int, string]("err").IfHasError(func(s string) {
+			called = true
+		})
+		if !called {
+			t.Error("expected function to be called")
+		}
+
+		called = false
+		Success[int, string](42).IfHasError(func(s string) {
+			called = true
+		})
+		if called {
+			t.Error("expected function not to be called")
+		}
+	})
+
+	t.Run("IfHasValueOrElse", func(t *testing.T) {
+		state := ""
+		Success[int, string](42).IfHasValueOrElse(
+			func(i int) { state = "value" },
+			func(s string) { state = "error" },
+		)
+		if state != "value" {
+			t.Error("expected 'value'")
+		}
+
+		Failure[int, string]("err").IfHasValueOrElse(
+			func(i int) { state = "value" },
+			func(s string) { state = "error" },
+		)
+		if state != "error" {
+			t.Error("expected 'error'")
+		}
+	})
+
+	t.Run("Equals", func(t *testing.T) {
+		e1 := Success[[]int, string]([]int{1, 2})
+		e2 := Success[[]int, string]([]int{1, 2})
+		e3 := Success[[]int, string]([]int{1, 3})
+		e4 := Failure[[]int, string]("err")
+		e5 := Failure[[]int, string]("err")
+		e6 := Failure[[]int, string]("other")
+
+		if !e1.Equals(e2) {
+			t.Error("e1 should equal e2")
+		}
+		if e1.Equals(e3) {
+			t.Error("e1 should not equal e3")
+		}
+		if e1.Equals(e4) {
+			t.Error("e1 should not equal e4")
+		}
+		if !e4.Equals(e5) {
+			t.Error("e4 should equal e5")
+		}
+		if e4.Equals(e6) {
+			t.Error("e4 should not equal e6")
+		}
+	})
+}
