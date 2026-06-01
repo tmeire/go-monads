@@ -142,11 +142,11 @@ func TestZeroValuesFixed(t *testing.T) {
 	t.Run("Int Zero Value", func(t *testing.T) {
 		// e is value 0
 		e := Success[int, string](0)
-		
+
 		res := e.OrElse(func(s string) Expected[int, string] {
 			return Success[int, string](100)
 		})
-		
+
 		if res.t != 0 || !res.hasValue {
 			t.Errorf("Expected 0 to be preserved, got %#v", res)
 		}
@@ -155,11 +155,11 @@ func TestZeroValuesFixed(t *testing.T) {
 	t.Run("String Zero Value as Error", func(t *testing.T) {
 		// e is error ""
 		e := Failure[int, string]("")
-		
+
 		res := e.AndThen(func(i int) Expected[int, string] {
 			return Success[int, string](i + 1)
 		})
-		
+
 		if res.hasValue {
 			t.Errorf("Empty string error should have blocked AndThen, but it proceeded")
 		}
@@ -177,6 +177,92 @@ func TestNonComparable(t *testing.T) {
 		})
 		if res.t != 3 || !res.hasValue {
 			t.Errorf("Expected length 3, got %#v", res)
+		}
+	})
+}
+
+func TestObservers(t *testing.T) {
+	t.Run("HasValue", func(t *testing.T) {
+		if !Success[int, string](42).HasValue() {
+			t.Error("expected Success to have value")
+		}
+		if Failure[int, string]("err").HasValue() {
+			t.Error("expected Failure not to have value")
+		}
+	})
+
+	t.Run("ValueOr", func(t *testing.T) {
+		if Success[int, string](42).ValueOr(100) != 42 {
+			t.Error("expected 42")
+		}
+		if Failure[int, string]("err").ValueOr(100) != 100 {
+			t.Error("expected 100")
+		}
+	})
+
+	t.Run("ErrorOr", func(t *testing.T) {
+		if Failure[int, string]("err").ErrorOr("default") != "err" {
+			t.Error("expected 'err'")
+		}
+		if Success[int, string](42).ErrorOr("default") != "default" {
+			t.Error("expected 'default'")
+		}
+	})
+
+	t.Run("Get", func(t *testing.T) {
+		val, err := Success[int, string](42).Get()
+		if val != 42 || err != "" {
+			t.Errorf("expected (42, ''), got (%d, '%s')", val, err)
+		}
+
+		val, err = Failure[int, string]("err").Get()
+		if val != 0 || err != "err" {
+			t.Errorf("expected (0, 'err'), got (%d, '%s')", val, err)
+		}
+	})
+}
+
+func TestEmplace(t *testing.T) {
+	t.Run("Emplace on Success", func(t *testing.T) {
+		e := Success[int, string](42)
+		valPtr := e.Emplace(100)
+		if !e.hasValue || e.t != 100 || e.e != "" {
+			t.Errorf("expected success with 100, got %#v", e)
+		}
+		if *valPtr != 100 {
+			t.Errorf("expected returned pointer to point to 100, got %d", *valPtr)
+		}
+		// Modify via pointer
+		*valPtr = 200
+		if e.t != 200 {
+			t.Errorf("expected internal value to be 200 after pointer modification, got %d", e.t)
+		}
+	})
+
+	t.Run("Emplace on Failure", func(t *testing.T) {
+		e := Failure[int, string]("error")
+		e.Emplace(42)
+		if !e.hasValue || e.t != 42 || e.e != "" {
+			t.Errorf("expected success with 42, got %#v", e)
+		}
+	})
+
+	t.Run("EmplaceError on Success", func(t *testing.T) {
+		e := Success[int, string](42)
+		errPtr := e.EmplaceError("new error")
+		if e.hasValue || e.e != "new error" || e.t != 0 {
+			t.Errorf("expected failure with 'new error', got %#v", e)
+		}
+		if *errPtr != "new error" {
+			t.Errorf("expected returned pointer to point to 'new error', got %s", *errPtr)
+		}
+	})
+
+	t.Run("EmplaceError on Failure", func(t *testing.T) {
+		e := Failure[int, string]("old error")
+		e.EmplaceError("new error")
+		if e.hasValue || e.e != "new error" || e.t != 0 {
+			t.Errorf("expected failure with 'new error', got %#v", e)
 		}
 	})
 }
