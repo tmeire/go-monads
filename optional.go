@@ -24,8 +24,43 @@ func (o Optional[T]) ValueOr(def T) T {
 	return o.value
 }
 
+func (o Optional[T]) ValueOrGet(f func() T) T {
+	if !o.hasValue {
+		return f()
+	}
+	return o.value
+}
+
+func (o Optional[T]) ValueOrErr(err error) (T, error) {
+	if !o.hasValue {
+		return *new(T), err
+	}
+	return o.value, nil
+}
+
 func (o Optional[T]) Get() (T, bool) {
 	return o.value, o.hasValue
+}
+
+func (o Optional[T]) Filter(f func(T) bool) Optional[T] {
+	if !o.hasValue || !f(o.value) {
+		return Optional[T]{hasValue: false}
+	}
+	return o
+}
+
+func (o Optional[T]) IfPresent(f func(T)) {
+	if o.hasValue {
+		f(o.value)
+	}
+}
+
+func (o Optional[T]) IfPresentOrElse(f func(T), e func()) {
+	if o.hasValue {
+		f(o.value)
+	} else {
+		e()
+	}
 }
 
 func (o *Optional[T]) Emplace(t T) *T {

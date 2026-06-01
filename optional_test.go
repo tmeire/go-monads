@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -98,6 +99,83 @@ func TestOptional(t *testing.T) {
 		})
 		if resNone.HasValue() {
 			t.Error("expected None")
+		}
+	})
+
+	t.Run("ValueOrGet", func(t *testing.T) {
+		if Some(42).ValueOrGet(func() int { return 100 }) != 42 {
+			t.Error("expected 42")
+		}
+		if None[int]().ValueOrGet(func() int { return 100 }) != 100 {
+			t.Error("expected 100")
+		}
+	})
+
+	t.Run("ValueOrErr", func(t *testing.T) {
+		err := errors.New("missing")
+		val, e := Some(42).ValueOrErr(err)
+		if e != nil || val != 42 {
+			t.Errorf("expected (42, nil), got (%d, %v)", val, e)
+		}
+
+		val, e = None[int]().ValueOrErr(err)
+		if e != err || val != 0 {
+			t.Errorf("expected (0, error), got (%d, %v)", val, e)
+		}
+	})
+
+	t.Run("Filter", func(t *testing.T) {
+		o := Some(42)
+		res := o.Filter(func(i int) bool { return i > 40 })
+		if !res.HasValue() || res.value != 42 {
+			t.Error("expected Some(42)")
+		}
+
+		res = o.Filter(func(i int) bool { return i < 40 })
+		if res.HasValue() {
+			t.Error("expected None")
+		}
+
+		res = None[int]().Filter(func(i int) bool { return true })
+		if res.HasValue() {
+			t.Error("expected None")
+		}
+	})
+
+	t.Run("IfPresent", func(t *testing.T) {
+		called := false
+		Some(42).IfPresent(func(i int) {
+			called = true
+		})
+		if !called {
+			t.Error("expected function to be called")
+		}
+
+		called = false
+		None[int]().IfPresent(func(i int) {
+			called = true
+		})
+		if called {
+			t.Error("expected function not to be called")
+		}
+	})
+
+	t.Run("IfPresentOrElse", func(t *testing.T) {
+		called := ""
+		Some(42).IfPresentOrElse(
+			func(i int) { called = "present" },
+			func() { called = "empty" },
+		)
+		if called != "present" {
+			t.Error("expected 'present'")
+		}
+
+		None[int]().IfPresentOrElse(
+			func(i int) { called = "present" },
+			func() { called = "empty" },
+		)
+		if called != "empty" {
+			t.Error("expected 'empty'")
 		}
 	})
 
