@@ -1,1 +1,0 @@
-../goroot/bin/go
